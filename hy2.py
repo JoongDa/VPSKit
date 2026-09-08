@@ -42,7 +42,7 @@ from pathlib import Path
 
 
 SCRIPT_NAME = "VPSKit Hysteria2"
-SCRIPT_VERSION = "0.1.5"
+SCRIPT_VERSION = "0.1.6"
 GITHUB_REPO = "JoongDa/VPSKit"
 GITHUB_BRANCH = "main"
 GITHUB_SCRIPT_PATH = "hy2.py"
@@ -1081,7 +1081,7 @@ def build_subscription_nginx(settings: dict) -> str:
 def prepare_subscription(domain: str, web_group: str = "www-data") -> None:
     domain = domain.lower().rstrip(".")
     if not validate_hostname(domain) or "." not in domain:
-        raise ValueError("请输入订阅域名，例如 sub.xiexie25.com；不要包含 https:// 或路径")
+        raise ValueError("请输入你自己的订阅域名；不要包含 https:// 或路径")
     web_group_gid(web_group)
     if not all(path.is_file() for path in subscription_sources().values()):
         raise ValueError("请先完成节点配置或重新导出，确保四种客户端文件均已生成")
@@ -1138,7 +1138,7 @@ def subscription_menu() -> None:
             if choice == "1":
                 current = read_subscription_settings() if SUBSCRIPTION_FILE.exists() else {}
                 print("此操作生成订阅文件和 Nginx 模板；首次还需按 README 配置 DNS、HTTPS 和站点。")
-                domain = input_default("订阅域名", current.get("domain", "sub.xiexie25.com"))
+                domain = input_nonempty("请输入你自己的订阅域名（必填）")
                 prepare_subscription(domain, current.get("web_group", "www-data"))
             elif choice == "2":
                 show_subscription_links()

@@ -39,6 +39,8 @@ wget -O hy2.py https://raw.githubusercontent.com/JoongDa/VPSKit/main/hy2.py && /
 
 普通安装和节点配置只生成本地客户端文件，不自动生成订阅令牌、订阅 Web 文件或 Nginx 模板，也不会为订阅安装 Web 服务。需要订阅时，主动选择 **5 → 1. 配置/修改订阅**，填写订阅域名。单纯打开菜单、查看未配置的链接或按回车返回都不会启用订阅。
 
+从 **0.1.6** 开始，首次配置和修改订阅都必须手动填写域名，没有默认域名；空输入会要求重新填写，不会自动沿用旧域名。下文 `example.com` 仅用于演示，请替换为你自己的域名。
+
 **3. Hysteria2 配置 → 1. 查看配置** 会依次显示服务端配置、已保存的 HY2 分享链接、二维码和客户端文件位置。查看操作不重新生成节点或同步订阅；二维码与显示的链接内容一致。未安装 `qrencode` 时会显示安装命令，仍可复制链接导入。
 
 订阅子菜单提供 **配置/修改、查看链接、同步文件、停用**。首次准备后仍需按下文完成 DNS、HTTPS 和 Nginx 站点配置，菜单不会将“文件已生成”视为“公网已上线”。已经主动配置订阅的用户，后续导出节点配置时自动同步订阅文件。
@@ -79,7 +81,7 @@ wget -O hy2.py https://raw.githubusercontent.com/JoongDa/VPSKit/main/hy2.py && s
 
 源码仓库可以公开；VPS 上的 `node.json`、配置导出、订阅令牌、证书私钥和 Cloudflare Token 不应提交到源码仓库。本目录的 `.gitignore` 包含常见运行产物与备份排除规则。
 
-## 使用 xiexie25.com 提供订阅
+## 使用自己的域名提供订阅
 
 订阅链接是一个 HTTPS 配置文件地址。客户端读取它取得节点配置；服务器保存新配置后，客户端下一次刷新才会收到变化。GitHub 脚本下载地址与客户端订阅地址是两个用途不同的地址。
 
@@ -92,7 +94,7 @@ wget -O hy2.py https://raw.githubusercontent.com/JoongDa/VPSKit/main/hy2.py && s
 | A | `hy2` | VPS 当前外部 IPv4 | DNS only，灰云 | HY2 直连节点，可选，节点也可直接用 IP |
 | A | `sub` | VPS 当前外部 IPv4 | Proxied，橙云 | HTTPS 配置订阅 |
 
-Cloudflare 普通橙云代理处理 HTTP/HTTPS，不能当作 HY2 的 UDP 转发。因此客户端节点地址使用 `hy2.xiexie25.com` 或 VPS IP，订阅地址才使用 `sub.xiexie25.com`。不要把订阅域名直接当作 HY2 节点域名。仅在 VPS 确有可达的外部 IPv6 时添加 AAAA。
+Cloudflare 普通橙云代理处理 HTTP/HTTPS，不能当作 HY2 的 UDP 转发。因此客户端节点地址使用 `hy2.example.com` 或 VPS IP，订阅地址才使用 `sub.example.com`。不要把订阅域名直接当作 HY2 节点域名。仅在 VPS 确有可达的外部 IPv6 时添加 AAAA。
 
 参考：[Cloudflare 代理状态](https://developers.cloudflare.com/dns/proxy-status/)。
 
@@ -106,7 +108,7 @@ sudo apt-get install -y nginx
 hy2
 ```
 
-选择 **5. 订阅链接（可选） → 1. 配置/修改订阅**，输入 `sub.xiexie25.com`。也可继续使用命令行入口 `hy2 --prepare-subscription sub.xiexie25.com`；两种入口调用同一个准备函数。
+选择 **5. 订阅链接（可选） → 1. 配置/修改订阅**，输入 `sub.example.com`。也可继续使用命令行入口 `hy2 --prepare-subscription sub.example.com`；两种入口调用同一个准备函数。
 
 脚本输出五条带随机令牌的订阅 URL，重复执行保留原令牌，因此客户端地址保持不变。Nginx 的默认 worker 组为 `www-data`；其他发行版若使用 `nginx` 组，执行时加 `--web-group nginx`。
 
@@ -122,15 +124,15 @@ hy2
 
 ### 3. 为订阅域名安装 HTTPS 证书
 
-在 Cloudflare 的 SSL/TLS → Origin Server 创建覆盖 `sub.xiexie25.com` 的 Origin CA 证书，保存证书和私钥。Origin CA 用于 Cloudflare 到 Nginx 的连接；订阅域名必须保持橙云。它不能代替灰云 HY2 节点的公开信任证书。
+在 Cloudflare 的 SSL/TLS → Origin Server 创建覆盖 `sub.example.com` 的 Origin CA 证书，保存证书和私钥。Origin CA 用于 Cloudflare 到 Nginx 的连接；订阅域名必须保持橙云。它不能代替灰云 HY2 节点的公开信任证书。
 
 在 VPS 建立 root 专用证书目录：
 
 ```bash
 sudo install -d -m 700 /etc/nginx/ssl
-sudo nano /etc/nginx/ssl/sub.xiexie25.com.pem
-sudo nano /etc/nginx/ssl/sub.xiexie25.com.key
-sudo chmod 600 /etc/nginx/ssl/sub.xiexie25.com.pem /etc/nginx/ssl/sub.xiexie25.com.key
+sudo nano /etc/nginx/ssl/sub.example.com.pem
+sudo nano /etc/nginx/ssl/sub.example.com.key
+sudo chmod 600 /etc/nginx/ssl/sub.example.com.pem /etc/nginx/ssl/sub.example.com.key
 ```
 
 分别粘贴证书 PEM 和私钥 PEM。Cloudflare 的 SSL/TLS 加密模式使用 **Full (strict)**；若域名下已有其他网站，先确认其源站也满足严格模式要求，或使用针对订阅主机名的配置。不要使用 Flexible 模式。
@@ -156,7 +158,7 @@ sudo systemctl reload nginx
 
 在 GCP VPC 和 VPS 本机防火墙放行 Nginx 所需 TCP 443；这与已有 HY2 UDP 放行规则独立。此方案无需为订阅站开放 TCP 80。
 
-在 Cloudflare 为 `sub.xiexie25.com` 添加 **Cache Rule：Bypass cache**，避免旧节点配置被缓存；不要对订阅路径启用浏览器验证码、交互登录或 JS Challenge，否则客户端无法自动获取。模板也发送 `Cache-Control: private, no-store`，并关闭该站点访问日志，减少令牌落入源站日志。
+在 Cloudflare 为 `sub.example.com` 添加 **Cache Rule：Bypass cache**，避免旧节点配置被缓存；不要对订阅路径启用浏览器验证码、交互登录或 JS Challenge，否则客户端无法自动获取。模板也发送 `Cache-Control: private, no-store`，并关闭该站点访问日志，减少令牌落入源站日志。
 
 参考：[Nginx alias](https://nginx.org/en/docs/http/ngx_http_core_module.html#alias)、[Cloudflare 缓存控制](https://developers.cloudflare.com/cache/concepts/cache-control/)。
 
@@ -166,11 +168,11 @@ sudo systemctl reload nginx
 
 | 客户端/用途 | HTTPS 文件地址 |
 |---|---|
-| Mihomo / Clash Verge 远程配置 | `https://sub.xiexie25.com/s/随机令牌/mihomo.yaml` |
-| 支持远程 JSON 配置的 sing-box 客户端 | `https://sub.xiexie25.com/s/随机令牌/sing-box.json` |
-| Surge 远程配置 | `https://sub.xiexie25.com/s/随机令牌/surge.conf` |
-| 支持 Base64 节点订阅的客户端，如 Shadowrocket | `https://sub.xiexie25.com/s/随机令牌/base64.txt` |
-| 支持纯文本 URI 列表的客户端 | `https://sub.xiexie25.com/s/随机令牌/links.txt` |
+| Mihomo / Clash Verge 远程配置 | `https://sub.example.com/s/随机令牌/mihomo.yaml` |
+| 支持远程 JSON 配置的 sing-box 客户端 | `https://sub.example.com/s/随机令牌/sing-box.json` |
+| Surge 远程配置 | `https://sub.example.com/s/随机令牌/surge.conf` |
+| 支持 Base64 节点订阅的客户端，如 Shadowrocket | `https://sub.example.com/s/随机令牌/base64.txt` |
+| 支持纯文本 URI 列表的客户端 | `https://sub.example.com/s/随机令牌/links.txt` |
 
 在客户端添加“远程配置/订阅”，粘贴对应地址。Mihomo 是内核，订阅刷新通常由 Clash Verge 等界面管理；sing-box 也取决于具体前端是否提供远程配置刷新。开启对应客户端的自动更新选项即可，建议从每天一次开始；原生 CLI 不会仅因为保存了 URL 就自动定时下载。
 
