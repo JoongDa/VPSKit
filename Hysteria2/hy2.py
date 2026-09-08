@@ -45,7 +45,7 @@ SCRIPT_NAME = "VPSKit Hysteria2"
 SCRIPT_VERSION = "0.1.6"
 GITHUB_REPO = "JoongDa/VPSKit"
 GITHUB_BRANCH = "main"
-GITHUB_SCRIPT_PATH = "hy2.py"
+GITHUB_SCRIPT_PATH = "Hysteria2/hy2.py"
 RAW_SCRIPT_URL = (
     f"https://raw.githubusercontent.com/{GITHUB_REPO}/"
     f"{GITHUB_BRANCH}/{GITHUB_SCRIPT_PATH}"
