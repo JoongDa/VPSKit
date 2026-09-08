@@ -4,6 +4,28 @@
 
 `hy2.py` 为 Hysteria2 安装、配置、服务管理脚本。0.1.3 修复全局快捷启动，0.1.4 将可选订阅功能做成独立菜单。此版本基于用户提供的 0.1.2 修改，不是之前 VH2 双协议脚本的替代副本。
 
+## 快速安装（Debian / Ubuntu）
+
+在 VPS 中以 root 执行下面两步，普通用户先运行 `sudo -i`。
+
+**1. 安装依赖（首次安装执行即可，可重复运行）：**
+
+```bash
+wget -O phy2.sh https://raw.githubusercontent.com/JoongDa/VPSKit/main/phy2.sh && bash phy2.sh
+```
+
+**2. 下载并启动管理脚本：**
+
+```bash
+wget -O hy2.py https://raw.githubusercontent.com/JoongDa/VPSKit/main/hy2.py && /usr/bin/python3 hy2.py
+```
+
+进入菜单后选择 **1. 安装/更新 Hysteria2**，按提示配置节点。此后在任意目录输入 `hy2` 即可打开管理菜单。
+
+`phy2.sh` 安装 Python 3、CA 证书、curl、wget、OpenSSL 和二维码工具。不会安装 Nginx、启用订阅或修改节点。依赖齐全时可以直接执行第二步；如果 VPS 连 wget 都没有，先执行 `apt-get update && apt-get install -y ca-certificates wget`。
+
+这里明确使用 Bash/Python 解释器执行文件，因此无需先 `chmod +x`。命令中的 `&&` 确保下载成功才执行。
+
 ## 菜单与可选订阅
 
 ```text
@@ -21,7 +43,7 @@
 
 ## 全局命令 hy2
 
-先将本地新版 `hy2.py` 上传 VPS，在上传目录运行一次：
+按上面的快速安装启动一次，正常同意使用说明后就会安装全局快捷命令。也可以上传本地新版 `hy2.py`，单独安装或修复快捷命令：
 
 ```bash
 sudo /usr/bin/python3 hy2.py --install-shortcut
@@ -45,17 +67,13 @@ printf '%s\n' "$PATH"
 
 提供的 `wget -O hy2.py ... && python3 hy2.py` 方案在具备权限、网络和依赖时可以运行，但会覆盖当前目录同名文件、启动指定远程仓库的版本，并且每次都依赖下载成功。旧 VPSKit 启动器也每次下载远程脚本；空仓库或尚未上传 `main/hy2.py` 时会失败。新启动器固定运行本机副本，脚本更新由用户主动执行。
 
-## 上传仓库后从 GitHub 安装或更新
-
-**只有仓库的 main 分支已上传新版 hy2.py 后，以下下载命令才可使用。** 当前本地修复不等于已经推送到 GitHub。
+## 从 GitHub 更新管理脚本
 
 ```bash
-curl -fL --retry 3 https://raw.githubusercontent.com/JoongDa/VPSKit/main/hy2.py -o /tmp/vpskit-hy2.py
-sudo /usr/bin/python3 /tmp/vpskit-hy2.py --install-shortcut
-hy2
+wget -O hy2.py https://raw.githubusercontent.com/JoongDa/VPSKit/main/hy2.py && sudo /usr/bin/python3 hy2.py --install-shortcut
 ```
 
-务必确认 curl 成功后再执行下一行。更换管理脚本不会自动升级 Hysteria 内核；内核更新仍使用菜单 1。
+更新后输入 `hy2` 启动。更换管理脚本不会自动升级 Hysteria 内核；内核更新仍使用菜单 1。
 
 源码仓库可以公开；VPS 上的 `node.json`、配置导出、订阅令牌、证书私钥和 Cloudflare Token 不应提交到源码仓库。本目录的 `.gitignore` 包含常见运行产物与备份排除规则。
 
