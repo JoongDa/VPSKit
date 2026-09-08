@@ -1,0 +1,16 @@
+.vs/
+__pycache__/
+*.pyc
+*.bak
+node.json
+agree.txt
+subscription.json
+subscription.nginx.conf
+*.key
+*.pem
+*.crt
+links.txt
+mihomo.yaml
+sing-box.json
+surge.conf
+base64.txt
