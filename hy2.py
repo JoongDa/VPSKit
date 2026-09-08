@@ -42,7 +42,7 @@ from pathlib import Path
 
 
 SCRIPT_NAME = "VPSKit Hysteria2"
-SCRIPT_VERSION = "0.1.4"
+SCRIPT_VERSION = "0.1.5"
 GITHUB_REPO = "JoongDa/VPSKit"
 GITHUB_BRANCH = "main"
 GITHUB_SCRIPT_PATH = "hy2.py"
@@ -1159,6 +1159,31 @@ def subscription_menu() -> None:
             cprint("已取消当前订阅操作。", YELLOW)
 
 
+def show_share_link(uri: str, show_qr: bool = True) -> None:
+    print("\n" + "=" * 72)
+    cprint("Hysteria2 分享链接：", CYAN)
+    print(uri)
+    print("=" * 72)
+    if not show_qr:
+        return
+    if not command_exists("qrencode"):
+        cprint("未安装 qrencode，无法显示二维码；可复制上面的链接导入。", YELLOW)
+        print("Debian/Ubuntu 安装命令：sudo apt-get install -y qrencode")
+        return
+    try:
+        result = subprocess.run(
+            ["qrencode", "-s", "1", "-m", "1", "-t", "ANSI256", "-o", "-"],
+            input=uri, text=True, capture_output=True, check=False, timeout=10,
+        )
+        if result.returncode == 0 and result.stdout:
+            print("\n二维码（扫描导入）：")
+            print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
+        else:
+            cprint("二维码生成失败；可复制上面的链接导入。", YELLOW)
+    except (OSError, subprocess.TimeoutExpired):
+        cprint("二维码工具无法运行或超时；可复制上面的链接导入。", YELLOW)
+
+
 def export_client_configs(node: dict, show_qr: bool = True) -> None:
     ensure_dirs()
     uri = build_hy2_uri(node)
@@ -1175,20 +1200,7 @@ def export_client_configs(node: dict, show_qr: bool = True) -> None:
         except (OSError, ValueError, KeyError) as exc:
             cprint(f"本地导出完成，但订阅同步失败：{exc}；修复后运行 hy2 --sync-subscription。", RED)
 
-    print("\n" + "=" * 72)
-    cprint("Hysteria2 分享链接：", CYAN)
-    print(uri)
-    print("=" * 72)
-
-    if show_qr and command_exists("qrencode"):
-        print("\n二维码：")
-        try:
-            subprocess.run(
-                ["qrencode", "-s", "1", "-m", "1", "-t", "ANSI256", "-o", "-", uri],
-                check=False,
-            )
-        except Exception:
-            pass
+    show_share_link(uri, show_qr=show_qr)
 
     cprint("\n本地客户端配置已生成：", GREEN)
     print(f"  {LINKS_FILE}")
@@ -1461,6 +1473,18 @@ def show_configs() -> None:
         print(HY_CONFIG.read_text(encoding="utf-8"))
     else:
         cprint("未找到服务端配置。", YELLOW)
+
+    # View the saved exports without regenerating credentials, files, or subscriptions.
+    links = []
+    if LINKS_FILE.is_file():
+        links = [line.strip() for line in LINKS_FILE.read_text(encoding="utf-8").splitlines()
+                 if line.strip().startswith(("hysteria2://", "hy2://"))]
+    if links:
+        print("--- 已保存的客户端分享信息 ---")
+        for uri in links:
+            show_share_link(uri)
+    else:
+        cprint("未找到已保存的 HY2 分享链接；请先完成一键配置或选择“重新生成本地客户端配置”。", YELLOW)
 
     print("--- 客户端导出文件 ---")
     for path in [LINKS_FILE, MIHOMO_FILE, SINGBOX_FILE, SURGE_FILE]:

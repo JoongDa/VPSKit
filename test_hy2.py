@@ -25,6 +25,7 @@ class VPSKitTests(unittest.TestCase):
         self.root = Path(self.stack.enter_context(tempfile.TemporaryDirectory()))
         for name, path in {
             'CONFIG_DIR': 'config', 'SSL_DIR': 'config/ssl', 'AGREE_FILE': 'config/agree.txt',
+            'HY_CONFIG': 'server/config.yaml',
             'NODE_FILE': 'config/node.json', 'LINKS_FILE': 'config/links.txt',
             'MIHOMO_FILE': 'config/mihomo.yaml', 'SINGBOX_FILE': 'config/sing-box.json',
             'SURGE_FILE': 'config/surge.conf', 'SUBSCRIPTION_FILE': 'config/subscription.json',
@@ -243,6 +244,57 @@ class VPSKitTests(unittest.TestCase):
             app.subscription_menu()
         self.assertTrue(app.SUBSCRIPTION_FILE.exists())
         self.assertTrue((app.SUBSCRIPTION_DIR / 'links.txt').exists())
+
+    def test_view_displays_saved_link_and_qr_without_regenerating(self):
+        self.exports()
+        uri = 'hysteria2://original%23password@[2001:db8::1]:443/?sni=example.com#HY2'
+        app.LINKS_FILE.write_text(uri + '\n')
+        app.HY_CONFIG.parent.mkdir()
+        app.HY_CONFIG.write_text('listen: :443\n')
+        original = {p: p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        output = io.StringIO()
+        with redirect_stdout(output), patch.object(app, 'command_exists', return_value=True), \
+             patch.object(app.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, 'QR-DEMO\n', '')) as qr, \
+             patch.object(app, 'export_client_configs') as export, \
+             patch.object(app, 'sync_subscription_files') as sync:
+            app.show_configs()
+        self.assertIn(uri, output.getvalue())
+        self.assertIn('QR-DEMO', output.getvalue())
+        self.assertIn('listen: :443', output.getvalue())
+        self.assertEqual(qr.call_args.kwargs['input'], uri)
+        self.assertNotIn(uri, qr.call_args.args[0])
+        self.assertEqual({p: p.read_bytes() for p in self.root.rglob('*') if p.is_file()}, original)
+        export.assert_not_called()
+        sync.assert_not_called()
+
+    def test_missing_qr_tool_keeps_link_and_explains_installation(self):
+        output = io.StringIO()
+        with redirect_stdout(output), patch.object(app, 'command_exists', return_value=False), \
+             patch.object(app.subprocess, 'run') as run:
+            app.show_share_link('hysteria2://test@example.com:443')
+        self.assertIn('hysteria2://test@example.com:443', output.getvalue())
+        self.assertIn('apt-get install -y qrencode', output.getvalue())
+        run.assert_not_called()
+
+    def test_qr_failure_or_timeout_keeps_view_usable(self):
+        for result in (subprocess.CompletedProcess([], 1, '', 'failed'),
+                       subprocess.TimeoutExpired('qrencode', 10)):
+            output = io.StringIO()
+            kwargs = {'side_effect': result} if isinstance(result, Exception) else {'return_value': result}
+            with redirect_stdout(output), patch.object(app, 'command_exists', return_value=True), \
+                 patch.object(app.subprocess, 'run', **kwargs):
+                app.show_share_link('hysteria2://test@example.com:443')
+            self.assertIn('可复制上面的链接导入', output.getvalue())
+
+    def test_view_with_missing_link_does_not_invent_or_export_credentials(self):
+        output = io.StringIO()
+        with redirect_stdout(output), patch.object(app, 'show_share_link') as show, \
+             patch.object(app, 'export_client_configs') as export:
+            app.show_configs()
+        self.assertIn('未找到已保存的 HY2 分享链接', output.getvalue())
+        show.assert_not_called()
+        export.assert_not_called()
+        self.assertEqual(list(self.root.iterdir()), [])
 
 
 if __name__ == '__main__':
