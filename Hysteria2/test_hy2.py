@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from contextlib import ExitStack, redirect_stdout
 from unittest.mock import patch
 
@@ -45,6 +46,37 @@ class VPSKitTests(unittest.TestCase):
         app.SSL_DIR.mkdir()
         (app.SSL_DIR / 'server.key').write_text('DO_NOT_PUBLISH_PRIVATE_KEY')
         self.stack.enter_context(patch.object(app, 'web_group_gid', return_value=33))
+
+    def test_copy_exports_to_sudo_account_home(self):
+        self.exports()
+        home = self.root / 'account-home'
+        home.mkdir()
+        (home / 'links.txt').write_text('old copy')
+        sources = {p: (p.read_bytes(), p.stat().st_mode) for p in app.subscription_sources().values()}
+        account = SimpleNamespace(pw_uid=1001, pw_gid=1002, pw_dir=str(home))
+        from unittest.mock import Mock
+        pwd = SimpleNamespace(getpwnam=Mock(return_value=account))
+        with patch.dict(os.environ, {'SUDO_USER': 'installer', 'HOME': str(self.root)}), \
+             patch.dict(sys.modules, {'pwd': pwd}):
+            app.copy_client_configs_to_user_home()
+        pwd.getpwnam.assert_called_once_with('installer')
+        for source, (content, mode) in sources.items():
+            self.assertEqual((home / source.name).read_bytes(), content)
+            self.assertEqual(source.read_bytes(), content)
+            self.assertEqual(source.stat().st_mode, mode)
+            if os.name == 'posix':
+                self.assertEqual((home / source.name).stat().st_mode & 0o777, 0o600)
+        self.assertEqual(len(self.chown.call_args_list), 4)
+        for call in self.chown.call_args_list:
+            self.assertEqual(call.args[1:], (1001, 1002))
+        self.assertFalse((home / 'node.json').exists())
+
+    def test_copy_exports_skips_without_ordinary_sudo_user(self):
+        for username in ('', 'root'):
+            with patch.dict(os.environ, {'SUDO_USER': username}), \
+                 patch.object(app, 'atomic_install') as install:
+                app.copy_client_configs_to_user_home()
+            install.assert_not_called()
 
     def test_shortcut_is_local_and_forwards_arguments(self):
         with patch.object(app, 'run', side_effect=AssertionError('must not run commands')):

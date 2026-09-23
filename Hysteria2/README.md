@@ -100,7 +100,11 @@ Cloudflare 普通橙云代理处理 HTTP/HTTPS，不能当作 HY2 的 UDP 转发
 
 ### 2. 准备本地订阅文件
 
-先完成 HY2 节点配置，确认 `/etc/hy2config/` 下已有 `links.txt`、`mihomo.yaml`、`sing-box.json`、`surge.conf`。以下 Nginx 安装步骤适用于 Debian/Ubuntu：
+先完成 HY2 节点配置，确认 `/etc/hy2config/` 下已有 `links.txt`、`mihomo.yaml`、`sing-box.json`、`surge.conf`。
+
+每次生成或重新导出配置时，脚本会通过 `SUDO_USER` 查找普通用户及其 Home，将上述四个文件额外复制到 Home 目录（覆盖同名副本），属主和组设为该用户，权限为 `0600`，方便通过 SSH/SFTP 下载。`/etc/hy2config/` 下的原文件保持不变。直接以 root 登录且没有有效普通用户 `SUDO_USER` 时会提示跳过复制。
+
+以下 Nginx 安装步骤适用于 Debian/Ubuntu：
 
 ```bash
 sudo apt-get update

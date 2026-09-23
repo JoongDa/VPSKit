@@ -277,7 +277,7 @@ def install_basic_dependencies() -> None:
         cprint(f"自动安装依赖失败：{exc}", YELLOW)
 
 
-def atomic_install(path: Path, content: bytes | str, mode: int, gid: int = 0) -> None:
+def atomic_install(path: Path, content: bytes | str, mode: int, gid: int = 0, uid: int = 0) -> None:
     """Write complete files before replacement; do not hide permission errors."""
     if path.is_symlink() or path.parent.is_symlink():
         raise ValueError(f"拒绝覆盖符号链接：{path}")
@@ -288,7 +288,7 @@ def atomic_install(path: Path, content: bytes | str, mode: int, gid: int = 0) ->
             stream.flush()
             os.fsync(stream.fileno())
         if hasattr(os, "chown"):
-            os.chown(name, 0, gid)
+            os.chown(name, uid, gid)
         os.chmod(name, mode)
         os.replace(name, path)
     finally:
@@ -1184,6 +1184,30 @@ def show_share_link(uri: str, show_qr: bool = True) -> None:
         cprint("二维码工具无法运行或超时；可复制上面的链接导入。", YELLOW)
 
 
+def copy_client_configs_to_user_home() -> None:
+    """Copy downloadable exports to the invoking sudo user's account home."""
+    username = os.environ.get("SUDO_USER")
+    if not username or username == "root":
+        cprint("未检测到普通用户 SUDO_USER，跳过 Home 配置副本。", YELLOW)
+        return
+    try:
+        import pwd
+
+        account = pwd.getpwnam(username)
+        if account.pw_uid == 0:
+            cprint("SUDO_USER 对应 root，跳过 Home 配置副本。", YELLOW)
+            return
+        home = Path(account.pw_dir)
+        if not home.is_absolute() or not home.is_dir():
+            raise ValueError(f"用户 Home 目录不存在或无效：{home}")
+        for filename, source in subscription_sources().items():
+            atomic_install(home / filename, source.read_bytes(), 0o600,
+                           gid=account.pw_gid, uid=account.pw_uid)
+        cprint(f"客户端配置已额外复制到 {home}，属主为 {username}，可通过 SSH 下载。", GREEN)
+    except (ImportError, KeyError, OSError, ValueError) as exc:
+        cprint(f"Home 配置复制失败：{exc}；原配置仍保留在 {CONFIG_DIR}。", YELLOW)
+
+
 def export_client_configs(node: dict, show_qr: bool = True) -> None:
     ensure_dirs()
     uri = build_hy2_uri(node)
@@ -1193,6 +1217,7 @@ def export_client_configs(node: dict, show_qr: bool = True) -> None:
     write_private(SINGBOX_FILE, build_singbox_config(node), 0o600)
     write_private(SURGE_FILE, build_surge_config(node), 0o600)
     write_private(NODE_FILE, json.dumps(node, ensure_ascii=False, indent=2) + "\n", 0o600)
+    copy_client_configs_to_user_home()
     if SUBSCRIPTION_FILE.exists():
         try:
             sync_subscription_files()
